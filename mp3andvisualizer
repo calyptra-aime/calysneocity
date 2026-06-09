@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<!-- im struggling to  get the pink theme right. on my pc screen its so washed out.but on my phone its eye burning. 
+its a good reminder, not all screens are the same -->
+<!--  this is for playing local files. you can play 2 at once. its a playlist setup. the player on the right has a visualizer -->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Dual Audio Player - with visualizer and snake</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+<!-- This is the url for pink static gif! tumblr is a good image host, so is deviantart -->
+            background: url('https://64.media.tumblr.com/88fd36bb39932ad32a95ead7b9e70553/35e24a78b63ba8bd-4a/s500x750/2e0070753ee6fb86078c03693e9225e356f5d4c1.gif') center/cover no-repeat fixed;
+            background-size: cover;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, 'Segoe UI', 'SF Mono', 'Fira Code', monospace;
+            padding: 16px;
+            transition: background-image 0.35s ease-in-out;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            pointer-events: none;
+            z-index: 0;
+            transition: background 0.2s ease;
+        }
+/* the rgba has to do with alpha or transparency , so that (0,0,0,0.3) is barely opaque but the 0.8 is more opaque */
+        body[data-theme="dark"]::before { background: rgba(0,0,0,0.8); }
+        body[data-theme="light"]::before { background: rgba(0,0,0,0.3); }
+        body[data-theme="yellow"]::before { background: rgba(0,0,0,0.8); }
+        body[data-theme="pink"]::before { background: rgba(0,0,0,0.35); }
+
+        .dual-container {
+            display: flex;
+            gap: 16px;
+            max-width: 1600px;
+            width: 100%;
+            align-items: stretch;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+
+        .player-card-left {
+            flex: 0.5;
+            min-width: 280px;
+            background: rgba(22, 30, 38, 0.5);
+            backdrop-filter: blur(16px);
+            border-radius: 32px;
+            padding: 14px 18px 18px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+            border: 1px solid rgba(122, 233, 255, 0.3);
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body[data-theme="pink"] .player-card-left { background: rgba(232, 174, 206, 0.5); border: 1px solid #c9006f; }
+        body[data-theme="dark"] .player-card-left { background: rgba(22, 30, 38, 0.5); border: 1px solid rgba(0, 153, 255, 0.3); }
+        body[data-theme="light"] .player-card-left { background: rgba(250, 250, 252, 0.5); border: 1px solid #000000; }
+        body[data-theme="yellow"] .player-card-left { background: rgba(25, 18, 10, 0.5); border: 1px solid #ffaa00; }
+
+        .player-title {
+            font-family: 'SF Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            text-align: center;
+            opacity: 0.8;
+        }
+        body[data-theme="pink"] .player-title { color: #c9006f; }
+        body[data-theme="dark"] .player-title { color: #0099ff; }
+        body[data-theme="light"] .player-title { color: #000000; }
+        body[data-theme="yellow"] .player-title { color: #ffaa00; }
+
+        .track-name-left {
+            font-size: 0.7rem;
+            text-align: center;
+            margin: 5px 0 8px;
+            font-family: monospace;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body[data-theme="pink"] .track-name-left { color: #c9006f; }
+        body[data-theme="dark"] .track-name-left { color: #0099ff; }
+        body[data-theme="light"] .track-name-left { color: #000000; }
+        body[data-theme="yellow"] .track-name-left { color: #ffaa00; }
+
+        .player-controls-left {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.35);
+            padding: 8px 12px;
+            border-radius: 40px;
+            margin: 8px 0;
+        }
+        .transport-btns-left {
+            display: flex;
+            gap: 6px;
+        }
+        .ctrl-btn-left {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.1s;
+            font-family: 'SF Mono', monospace;
+        }
+        .ctrl-btn-left:hover { transform: scale(1.02); background: rgba(122,233,255,0.4); }
+        body[data-theme="pink"] .ctrl-btn-left { color: #c9006f; background: rgba(0,0,0,0.1); }
+        body[data-theme="dark"] .ctrl-btn-left { color: #0099ff; }
+        body[data-theme="light"] .ctrl-btn-left { color: #000000; background: rgba(0,0,0,0.08); }
+        body[data-theme="yellow"] .ctrl-btn-left { color: #ffaa00; background: rgba(255,170,0,0.15); }
+        
+        .time-slider-left, .volume-slider-left { flex: 2; min-width: 80px; }
+        .time-display-left {
+            font-family: monospace;
+            font-size: 0.6rem;
+            background: rgba(0,0,0,0.5);
+            padding: 3px 6px;
+            border-radius: 30px;
+            min-width: 70px;
+            text-align: center;
+        }
+        body[data-theme="pink"] .time-display-left { color: #c9006f; background: rgba(0,0,0,0.15); }
+        body[data-theme="dark"] .time-display-left { color: #0099ff; }
+        body[data-theme="light"] .time-display-left { color: #000000; background: rgba(0,0,0,0.08); }
+        body[data-theme="yellow"] .time-display-left { color: #ffaa00; background: rgba(0,0,0,0.4); }
+        
+        .file-manager-left {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .file-list-left {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 6px 10px;
+            max-height: 160px;
+            overflow-y: auto;
+            min-height: 60px;
+        }
+        .track-item-left {
+            padding: 4px 8px;
+            margin: 2px 0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-family: monospace;
+            transition: 0.1s;
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.05);
+        }
+        .track-item-left:hover { transform: translateX(2px); }
+        .track-item-left.active { border-left-width: 2px; border-left-style: solid; }
+        body[data-theme="pink"] .track-item-left { color: #c9006f; }
+        body[data-theme="pink"] .track-item-left.active { border-left-color: #c9006f; background: rgba(201,0,111,0.25); }
+        body[data-theme="dark"] .track-item-left { color: #0099ff; }
+        body[data-theme="dark"] .track-item-left.active { border-left-color: #0099ff; background: rgba(0,153,255,0.15); }
+        body[data-theme="light"] .track-item-left { color: #000000; }
+        body[data-theme="light"] .track-item-left.active { border-left-color: #000000; background: rgba(0,0,0,0.1); }
+        body[data-theme="yellow"] .track-item-left { color: #ffaa00; }
+        body[data-theme="yellow"] .track-item-left.active { border-left-color: #ffaa00; background: rgba(255,170,0,0.2); }
+        
+        .remove-track-left {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+        body[data-theme="pink"] .remove-track-left { color: #c9006f; }
+        body[data-theme="dark"] .remove-track-left { color: #ff8888; }
+        body[data-theme="light"] .remove-track-left { color: #cc0000; }
+        body[data-theme="yellow"] .remove-track-left { color: #ffaa00; }
+        
+        .add-btn-left {
+            border: 1px solid;
+            padding: 6px 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: bold;
+            background: rgba(255,255,255,0.1);
+            text-align: center;
+            font-size: 0.7rem;
+        }
+        body[data-theme="pink"] .add-btn-left { color: #c9006f; border-color: #c9006f; background: rgba(201,0,111,0.1); }
+        body[data-theme="dark"] .add-btn-left { color: #0099ff; border-color: #0099ff; }
+        body[data-theme="light"] .add-btn-left { color: #000000; border-color: #000000; background: rgba(0,0,0,0.05); }
+        body[data-theme="yellow"] .add-btn-left { color: #ffaa00; border-color: #ffaa00; background: rgba(255,170,0,0.1); }
+
+        .generator-section {
+            margin-top: 12px;
+            border-top: 1px solid rgba(122, 233, 255, 0.2);
+            padding-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .generator-block {
+            background: rgba(0,0,0,0.25);
+            border-radius: 20px;
+            padding: 10px 12px;
+        }
+        .gen-header {
+            font-size: 0.6rem;
+            font-family: 'SF Mono', monospace;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        body[data-theme="pink"] .gen-header { color: #c9006f; }
+        body[data-theme="dark"] .gen-header { color: #0099ff; }
+        body[data-theme="light"] .gen-header { color: #000000; }
+        body[data-theme="yellow"] .gen-header { color: #ffaa00; }
+        
+        .gen-control-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .gen-toggle {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid;
+            border-radius: 40px;
+            padding: 4px 12px;
+            font-size: 0.6rem;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        body[data-theme="pink"] .gen-toggle { color: #c9006f; border-color: #c9006f; background: rgba(0,0,0,0.15); }
+        body[data-theme="dark"] .gen-toggle { color: #0099ff; border-color: #0099ff; background: rgba(0,0,0,0.5); }
+        body[data-theme="light"] .gen-toggle { color: #000000; border-color: #000000; background: rgba(0,0,0,0.08); }
+        body[data-theme="yellow"] .gen-toggle { color: #ffaa00; border-color: #ffaa00; background: rgba(0,0,0,0.5); }
+        
+        .gen-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            border-radius: 40px;
+            padding: 4px 12px;
+            font-size: 0.6rem;
+            font-family: 'SF Mono', monospace;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .gen-btn:hover { transform: scale(1.02); background: rgba(122,233,255,0.4); }
+        body[data-theme="pink"] .gen-btn { color: #c9006f; background: rgba(0,0,0,0.1); }
+        body[data-theme="dark"] .gen-btn { color: #0099ff; }
+        body[data-theme="light"] .gen-btn { color: #000000; background: rgba(0,0,0,0.08); }
+        body[data-theme="yellow"] .gen-btn { color: #ffaa00; background: rgba(255,170,0,0.15); }
+        
+        .gen-slider {
+            flex: 2;
+            min-width: 80px;
+        }
+        .gen-value {
+            font-family: monospace;
+            font-size: 0.55rem;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 6px;
+            border-radius: 20px;
+            min-width: 45px;
+            text-align: center;
+        }
+        body[data-theme="pink"] .gen-value { color: #c9006f; }
+        body[data-theme="dark"] .gen-value { color: #0099ff; }
+        body[data-theme="light"] .gen-value { color: #000000; }
+        body[data-theme="yellow"] .gen-value { color: #ffaa00; }
+
+        .player-card-main {
+            flex: 1;
+            min-width: 450px;
+            background: rgba(22, 30, 38, 0.5);
+            backdrop-filter: blur(16px);
+            border-radius: 40px;
+            padding: 18px 24px 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+            border: 1px solid rgba(122, 233, 255, 0.3);
+            transition: all 0.2s;
+        }
+        
+        body[data-theme="pink"] .player-card-main { background: rgba(232, 174, 206, 0.5); border: 1px solid #c9006f; }
+        body[data-theme="pink"] .toolbar { border-bottom: 1px solid #c9006f60; }
+        body[data-theme="pink"] .toolbar-center { background: rgba(0,0,0,0.12); border: 1px solid #c9006f40; }
+        body[data-theme="pink"] .toolbar-clock { color: #c9006f; text-shadow: 0 0 6px #ff99cc; }
+        body[data-theme="pink"] .toolbar-date { color: #c9006f; }
+        body[data-theme="pink"] .btn-pill { background: rgba(0,0,0,0.1); color: #c9006f; border: 1px solid #c9006f40; }
+        body[data-theme="pink"] .btn-pill:hover { background: #c9006f; color: #e8aece; box-shadow: 0 0 8px #c9006f; }
+        body[data-theme="pink"] .inline-status { background: rgba(0,0,0,0.12); color: #c9006f; }
+        body[data-theme="pink"] .status-dot { background-color: #c9006f; animation: pulseGlowPink 1.4s infinite; }
+        body[data-theme="pink"] .time-display-main,
+        body[data-theme="pink"] .track-item-main,
+        body[data-theme="pink"] .empty-list,
+        body[data-theme="pink"] .add-btn-main { color: #c9006f; }
+        body[data-theme="pink"] .track-item-main.active { background: #c9006f40; border-left-color: #c9006f; }
+        body[data-theme="pink"] input[type="range"] { accent-color: #c9006f; }
+        body[data-theme="pink"] .remove-track-main { color: #c9006f; }
+        body[data-theme="pink"] .visualizer-container { border-color: #c9006f60; }
+        body[data-theme="pink"] .ctrl-btn-main { color: #c9006f; background: rgba(0,0,0,0.1); }
+        body[data-theme="pink"] .ctrl-btn-main:hover { background: #c9006f; color: #e8aece; }
+        
+        body[data-theme="dark"] .player-card-main { background: rgba(22, 30, 38, 0.5); border: 1px solid rgba(0, 153, 255, 0.3); }
+        body[data-theme="dark"] .toolbar-clock { color: #0099ff; text-shadow: 0 0 6px #0099ff; }
+        body[data-theme="dark"] .toolbar-date { color: #0099ff; }
+        body[data-theme="dark"] .btn-pill { background: rgba(0,0,0,0.4); color: #0099ff; border: 1px solid #0099ff60; }
+        body[data-theme="dark"] .btn-pill:hover { background: #0099ff; color: #0a1a2a; box-shadow: 0 0 8px #0099ff; }
+        body[data-theme="dark"] .inline-status { background: rgba(0,0,0,0.5); color: #0099ff; }
+        body[data-theme="dark"] .status-dot { background-color: #0099ff; animation: pulseGlowDark 1.4s infinite; }
+        body[data-theme="dark"] .time-display-main,
+        body[data-theme="dark"] .track-item-main,
+        body[data-theme="dark"] .empty-list,
+        body[data-theme="dark"] .add-btn-main { color: #0099ff; }
+        body[data-theme="dark"] .track-item-main.active { background: #0099ff40; border-left-color: #0099ff; }
+        body[data-theme="dark"] input[type="range"] { accent-color: #0099ff; }
+        body[data-theme="dark"] .remove-track-main { color: #ff8888; }
+        body[data-theme="dark"] .visualizer-container { border-color: #0099ff60; }
+        body[data-theme="dark"] .ctrl-btn-main { color: #0099ff; }
+        body[data-theme="dark"] .ctrl-btn-main:hover { background: #0099ff; color: #0a1a2a; }
+        
+        body[data-theme="light"] .player-card-main { background: rgba(250, 250, 252, 0.5); border: 1px solid #000000; }
+        body[data-theme="light"] .toolbar { border-bottom: 1px solid #00000030; }
+        body[data-theme="light"] .toolbar-center { background: rgba(0,0,0,0.05); border: 1px solid #00000020; }
+        body[data-theme="light"] .toolbar-clock { color: #000000; text-shadow: none; }
+        body[data-theme="light"] .toolbar-date { color: #000000; }
+        body[data-theme="light"] .btn-pill { background: rgba(0,0,0,0.06); color: #000000; border: 1px solid #00000030; }
+        body[data-theme="light"] .btn-pill:hover { background: #000000; color: #ffffff; box-shadow: 0 0 8px #000000; }
+        body[data-theme="light"] .inline-status { background: rgba(0,0,0,0.06); color: #000000; }
+        body[data-theme="light"] .status-dot { background-color: #000000; animation: pulseGlowLight 1.4s infinite; }
+        body[data-theme="light"] .time-display-main,
+        body[data-theme="light"] .track-item-main,
+        body[data-theme="light"] .empty-list,
+        body[data-theme="light"] .add-btn-main { color: #000000; }
+        body[data-theme="light"] .track-item-main.active { background: #00000020; border-left-color: #000000; }
+        body[data-theme="light"] input[type="range"] { accent-color: #000000; }
+        body[data-theme="light"] .add-btn-main { background: #00000010; border-color: #000000; }
+        body[data-theme="light"] .remove-track-main { color: #cc0000; }
+        body[data-theme="light"] .ctrl-btn-main { background: rgba(0,0,0,0.1); color: #000000; }
+        body[data-theme="light"] .ctrl-btn-main:hover { background: #000000; color: #ffffff; }
+        body[data-theme="light"] .visualizer-container { border-color: #00000040; }
+        
+        body[data-theme="yellow"] .player-card-main { background: rgba(25, 18, 10, 0.5); border: 1px solid #ffaa00; }
+        body[data-theme="yellow"] .toolbar { border-bottom: 1px solid #ffaa0060; }
+        body[data-theme="yellow"] .toolbar-center { background: rgba(0,0,0,0.35); border: 1px solid #ffaa0040; }
+        body[data-theme="yellow"] .toolbar-clock { color: #ffaa00; text-shadow: 0 0 6px #ffaa00; }
+        body[data-theme="yellow"] .toolbar-date { color: #ffaa00; }
+        body[data-theme="yellow"] .btn-pill { background: rgba(0,0,0,0.5); color: #ffaa00; border: 1px solid #ffaa0060; }
+        body[data-theme="yellow"] .btn-pill:hover { background: #ffaa00; color: #1a0f00; box-shadow: 0 0 12px #ffaa00; }
+        body[data-theme="yellow"] .inline-status { background: rgba(0,0,0,0.5); color: #ffaa00; }
+        body[data-theme="yellow"] .status-dot { background-color: #ffaa00; animation: pulseGlowAmber 1.4s infinite; }
+        body[data-theme="yellow"] .time-display-main,
+        body[data-theme="yellow"] .track-item-main,
+        body[data-theme="yellow"] .empty-list,
+        body[data-theme="yellow"] .add-btn-main,
+        body[data-theme="yellow"] .ctrl-btn-main,
+        body[data-theme="yellow"] .remove-track-main { color: #ffaa00; }
+        body[data-theme="yellow"] .track-item-main { background: rgba(255,170,0,0.1); }
+        body[data-theme="yellow"] .track-item-main:hover { background: rgba(255,170,0,0.3); transform: translateX(2px); }
+        body[data-theme="yellow"] .track-item-main.active { background: #ffaa0040; border-left: 2px solid #ffaa00; }
+        body[data-theme="yellow"] input[type="range"] { accent-color: #ffaa00; }
+        body[data-theme="yellow"] .add-btn-main { background: #ffaa0020; border-color: #ffaa00; }
+        body[data-theme="yellow"] .ctrl-btn-main { background: rgba(255,170,0,0.2); color: #ffaa00; }
+        body[data-theme="yellow"] .ctrl-btn-main:hover { background: #ffaa00; color: #1a0f00; }
+        body[data-theme="yellow"] .time-display-main { background: rgba(0,0,0,0.6); }
+        body[data-theme="yellow"] .visualizer-container { border-color: #ffaa0060; }
+        
+        @keyframes pulseGlowDark {
+            0% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 0 0 #0099ff80; }
+            100% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 0 5px rgba(0,153,255,0); }
+        }
+        @keyframes pulseGlowLight {
+            0% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 0 0 #00000080; }
+            100% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 0 5px rgba(0,0,0,0); }
+        }
+        @keyframes pulseGlowAmber {
+            0% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 0 0 #ffaa0080; }
+            100% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 0 5px rgba(255,170,0,0); }
+        }
+        @keyframes pulseGlowPink {
+            0% { opacity: 0.4; transform: scale(0.8); box-shadow: 0 0 0 0 #c9006f80; }
+            100% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 0 5px rgba(201,0,111,0); }
+        }
+        
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+        }
+        .toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .toolbar-center {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            padding: 2px 16px;
+            border-radius: 60px;
+        }
+        .toolbar-clock {
+            font-family: 'SF Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+        }
+        .toolbar-date {
+            font-family: 'Inter', monospace;
+            font-size: 0.6rem;
+            font-weight: 500;
+        }
+        .btn-pill {
+            border: none;
+            font-family: 'SF Mono', monospace;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            backdrop-filter: blur(4px);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+        }
+        .btn-pill:hover { transform: scale(1.01); }
+        .inline-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-size: 0.6rem;
+            font-family: monospace;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 10px;
+        }
+        
+        .visualizer-container {
+            position: relative;
+            margin-top: 12px;
+            border-radius: 32px;
+            overflow: hidden;
+            border: 1px solid;
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(4px);
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        
+        .player-controls-main {
+            margin-top: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0,0,0,0.35);
+            padding: 8px 16px;
+            border-radius: 60px;
+            backdrop-filter: blur(4px);
+        }
+        .transport-btns-main {
+            display: flex;
+            gap: 8px;
+        }
+        .ctrl-btn-main {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            font-size: 0.9rem;
+            padding: 5px 14px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.1s;
+            font-family: 'SF Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+        .ctrl-btn-main:hover { transform: scale(1.02); background: rgba(122,233,255,0.4); }
+        .time-slider-main, .volume-slider-main { flex: 2; min-width: 100px; }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            height: 3px;
+            border-radius: 10px;
+        }
+        .time-display-main {
+            font-family: monospace;
+            font-size: 0.7rem;
+            background: rgba(0,0,0,0.5);
+            padding: 3px 8px;
+            border-radius: 30px;
+            min-width: 85px;
+            text-align: center;
+        }
+        .file-manager-main {
+            margin-top: 14px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .file-list-main {
+            flex: 3;
+            background: rgba(0,0,0,0.3);
+            border-radius: 24px;
+            padding: 8px 12px;
+            max-height: 140px;
+            overflow-y: auto;
+            min-height: 50px;
+        }
+        .empty-list {
+            text-align: center;
+            opacity: 0.6;
+            font-style: italic;
+            font-size: 0.7rem;
+        }
+        .track-item-main {
+            padding: 5px 10px;
+            margin: 3px 0;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-family: monospace;
+            transition: 0.1s;
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.05);
+        }
+        .track-item-main:hover { transform: translateX(2px); }
+        .track-item-main.active { border-left-width: 3px; border-left-style: solid; }
+        .remove-track-main {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        .remove-track-main:hover { opacity: 1; }
+        .add-btn-main {
+            border: 1px solid;
+            padding: 8px 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            background: rgba(255,255,255,0.1);
+            font-size: 0.75rem;
+        }
+        
+        .snake-modal {
+            position: fixed;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 260px;
+            background: rgba(22, 30, 38, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            border: 1px solid;
+            z-index: 100;
+            transition: all 0.2s ease;
+            display: none;
+        }
+        .snake-modal.show { display: block; }
+        body[data-theme="pink"] .snake-modal { border-color: #c9006f; background: rgba(232, 174, 206, 0.85); }
+        body[data-theme="dark"] .snake-modal { border-color: #0099ff; background: rgba(22, 30, 38, 0.85); }
+        body[data-theme="light"] .snake-modal { border-color: #000000; background: rgba(250, 250, 252, 0.9); }
+        body[data-theme="yellow"] .snake-modal { border-color: #ffaa00; background: rgba(25, 18, 10, 0.85); }
+        
+        .snake-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', monospace;
+            font-weight: bold;
+        }
+        .snake-header h3 { font-size: 0.9rem; letter-spacing: 1px; }
+        .close-snake {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0 4px;
+            transition: 0.1s;
+        }
+        .close-snake:hover { transform: scale(1.05); }
+        body[data-theme="pink"] .snake-header h3, body[data-theme="pink"] .close-snake { color: #c9006f; }
+        body[data-theme="dark"] .snake-header h3, body[data-theme="dark"] .close-snake { color: #0099ff; }
+        body[data-theme="light"] .snake-header h3, body[data-theme="light"] .close-snake { color: #000000; }
+        body[data-theme="yellow"] .snake-header h3, body[data-theme="yellow"] .close-snake { color: #ffaa00; }
+        
+        .snake-score {
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            font-family: monospace;
+            font-weight: bold;
+            text-align: center;
+        }
+        body[data-theme="pink"] .snake-score { color: #c9006f; }
+        body[data-theme="dark"] .snake-score { color: #0099ff; }
+        body[data-theme="light"] .snake-score { color: #000000; }
+        body[data-theme="yellow"] .snake-score { color: #ffaa00; }
+        
+        .snake-canvas {
+            background: rgba(0,0,0,0.3);
+            display: block;
+            margin: 0 auto;
+            border-radius: 12px;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+            cursor: pointer;
+        }
+        .snake-controls {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .snake-btn {
+            background: rgba(0,0,0,0.3);
+            border: none;
+            padding: 3px 10px;
+            border-radius: 25px;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.1s;
+            font-size: 0.6rem;
+        }
+        body[data-theme="pink"] .snake-btn { color: #c9006f; border: 1px solid #c9006f60; background: rgba(0,0,0,0.2); }
+        body[data-theme="dark"] .snake-btn { color: #0099ff; border: 1px solid #0099ff60; }
+        body[data-theme="light"] .snake-btn { color: #000000; border: 1px solid #00000040; background: rgba(0,0,0,0.1); }
+        body[data-theme="yellow"] .snake-btn { color: #ffaa00; border: 1px solid #ffaa0060; }
+        .snake-btn:hover { transform: scale(1.02); background: currentColor; color: #000; }
+        
+        @media (max-width: 900px) {
+            body { padding: 12px; }
+            .dual-container { flex-direction: column; }
+            .player-card-left { min-width: auto; }
+            .player-card-main { min-width: auto; }
+            .snake-modal { right: 10px; width: 240px; top: auto; bottom: 10px; transform: none; }
+            .player-controls-main { flex-direction: column; align-items: stretch; }
+            .time-slider-main, .volume-slider-main { width: 100%; }
+        }
+    </style>
+</head>
+<body data-theme="pink">
+<div class="dual-container">
+    
+    <div class="player-card-left">
+        <div class="player-title">SECONDARY DECK</div>
+        <div class="track-name-left" id="leftTrackName">no track loaded</div>
+        
+        <div class="player-controls-left">
+            <div class="transport-btns-left">
+                <button id="leftPlayPauseBtn" class="ctrl-btn-left">▶</button>
+                <button id="leftRepeatBtn" class="ctrl-btn-left">REPEAT: OFF</button>
+            </div>
+            <div class="time-slider-left">
+                <input type="range" id="leftSeekSlider" value="0" step="0.01">
+            </div>
+            <div class="time-display-left">
+                <span id="leftCurrentTime">0:00</span> / <span id="leftDuration">0:00</span>
+            </div>
+            <div class="volume-slider-left">
+                <input type="range" id="leftVolumeSlider" min="0" max="1" step="0.01" value="0.5">
+            </div>
+        </div>
+        
+        <div class="file-manager-left">
+            <div class="file-list-left" id="leftFileListContainer">
+                <div class="empty-list">none loaded</div>
+            </div>
+            <input type="file" id="leftFilePicker" accept="audio/*,audio/mp4,audio/x-m4a,.m4a" multiple style="display:none;">
+            <button id="leftAddFilesBtn" class="add-btn-left">ADD FILES</button>
+        </div>
+
+        <div class="generator-section">
+            <div class="generator-block">
+                <div class="gen-header">TONE</div>
+                <div class="gen-control-row">
+                    <button id="toneTypeToggle" class="gen-toggle">SINE</button>
+                    <button id="tonePlayBtn" class="gen-btn">PLAY</button>
+                    <button id="toneStopBtn" class="gen-btn">STOP</button>
+                </div>
+                <div class="gen-control-row">
+                    <span class="gen-value">PITCH</span>
+                    <input type="range" id="tonePitchSlider" class="gen-slider" min="0" max="800" step="1" value="440">
+                    <span id="tonePitchValue" class="gen-value">440</span>
+                </div>
+                <div class="gen-control-row">
+                    <span class="gen-value">VOL</span>
+                    <input type="range" id="toneVolumeSlider" class="gen-slider" min="0" max="1" step="0.01" value="0.3">
+                    <span id="toneVolumeValue" class="gen-value">0.30</span>
+                </div>
+            </div>
+            <div class="generator-block">
+                <div class="gen-header">NOISE</div>
+                <div class="gen-control-row">
+                    <button id="noiseTypeToggle" class="gen-toggle">WHITE</button>
+                    <button id="noisePlayBtn" class="gen-btn">PLAY</button>
+                    <button id="noiseStopBtn" class="gen-btn">STOP</button>
+                </div>
+                <div class="gen-control-row">
+                    <span class="gen-value">CUTOFF</span>
+                    <input type="range" id="noiseCutoffSlider" class="gen-slider" min="0" max="1000" step="1" value="1000">
+                    <span id="noiseCutoffValue" class="gen-value">1000</span>
+                </div>
+                <div class="gen-control-row">
+                    <span class="gen-value">VOL</span>
+                    <input type="range" id="noiseVolumeSlider" class="gen-slider" min="0" max="1" step="0.01" value="0.2">
+                    <span id="noiseVolumeValue" class="gen-value">0.20</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="player-card-main">
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <button class="btn-pill" id="themeCycleBtn">THEME</button>
+                <button class="btn-pill" id="backgroundShuffleBtn">BG</button>
+                <button class="btn-pill" id="localBgBtn">LOCAL BG</button>
+                <button class="btn-pill" id="vizToggleBtn">VIZ: WAVE</button>
+                <button class="btn-pill" id="snakeGameBtn">SNAKE</button>
+            </div>
+            <div class="toolbar-center">
+                <span class="toolbar-clock" id="liveClock">--:--</span>
+                <span class="toolbar-date" id="liveDate">--</span>
+            </div>
+            <div class="toolbar-right">
+                <div class="inline-status"><span class="status-dot"></span><span id="liveStatus">audio ready</span></div>
+            </div>
+        </div>
+
+        <div class="visualizer-container">
+            <canvas id="visualizerCanvas" width="1000" height="400" style="width:100%; height:auto; aspect-ratio:1000/400; border-radius:32px;"></canvas>
+        </div>
+
+        <div class="player-controls-main">
+            <div class="transport-btns-main">
+                <button id="playPauseBtn" class="ctrl-btn-main">▶</button>
+                <button id="repeatBtn" class="ctrl-btn-main">REPEAT: OFF</button>
+            </div>
+            <div class="time-slider-main">
+                <input type="range" id="seekSlider" value="0" step="0.01">
+            </div>
+            <div class="time-display-main">
+                <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+            </div>
+            <div class="volume-slider-main">
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.7">
+            </div>
+        </div>
+
+        <div class="file-manager-main">
+            <div class="file-list-main" id="fileListContainer">
+                <div class="empty-list">none loaded</div>
+            </div>
+            <input type="file" id="filePicker" accept="audio/*,audio/mp4,audio/x-m4a,.m4a" multiple style="display:none;">
+            <button id="addFilesBtn" class="add-btn-main">ADD FILES</button>
+        </div>
+    </div>
+</div>
+
+<div id="snakeModal" class="snake-modal">
+    <div class="snake-header">
+        <h3>SNAKE</h3>
+        <button id="closeSnakeModalBtn" class="close-snake">✖</button>
+    </div>
+    <div class="snake-score">SCORE: <span id="snakeScore">0</span></div>
+    <canvas id="snakeCanvas" class="snake-canvas" width="300" height="300"></canvas>
+    <div class="snake-controls">
+        <button id="resetSnakeModalBtn" class="snake-btn">RESET</button>
+        <button id="pauseSnakeModalBtn" class="snake-btn">PAUSE</button>
+    </div>
+    <div style="font-size: 0.5rem; text-align:center; margin-top:6px; opacity:0.7;">arrows or WASD</div>
+</div>
+
+<input type="file" id="localBgInput" accept="image/jpeg,image/png,image/gif" style="display:none;">
+
+<script>
+    // ========== MAIN PLAYER (condensed but functional) ==========
+    const canvas = document.getElementById('visualizerCanvas');
+    const ctx = canvas.getContext('2d');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const repeatBtn = document.getElementById('repeatBtn');
+    const seekSlider = document.getElementById('seekSlider');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const currentTimeSpan = document.getElementById('currentTime');
+    const durationSpan = document.getElementById('duration');
+    const fileListContainer = document.getElementById('fileListContainer');
+    const filePicker = document.getElementById('filePicker');
+    const addFilesBtn = document.getElementById('addFilesBtn');
+    const vizToggleBtn = document.getElementById('vizToggleBtn');
+    const localBgBtn = document.getElementById('localBgBtn');
+    const localBgInput = document.getElementById('localBgInput');
+    
+    let audioElement = new Audio();
+    let audioContext = null;
+    let analyser = null;
+    let sourceNode = null;
+    let animationId = null;
+    let isPlaying = false;
+    let currentTrackIndex = -1;
+    let tracks = [];
+    let vizMode = 'waveform';
+    let pulsePhase = 0;
+    let repeatMode = 0;
+    
+    function updateRepeatButton() {
+        const modeText = repeatMode === 0 ? 'REPEAT: OFF' : (repeatMode === 1 ? 'REPEAT: ONE' : 'REPEAT: LIST');
+        repeatBtn.innerText = modeText;
+    }
+    
+    function cycleRepeatMode() {
+        repeatMode = (repeatMode + 1) % 3;
+        updateRepeatButton();
+        audioElement.loop = false;
+        setStatus(`repeat: ${repeatMode === 0 ? 'off' : (repeatMode === 1 ? 'one' : 'list')}`, true);
+    }
+    
+    function handleTrackEnd() {
+        if (repeatMode === 1) {
+            audioElement.currentTime = 0;
+            audioElement.play().catch(e => console.log);
+        } else if (repeatMode === 2 && tracks.length > 0) {
+            let nextIndex = currentTrackIndex + 1;
+            if (nextIndex >= tracks.length) nextIndex = 0;
+            loadTrack(nextIndex);
+            audioElement.play().catch(e => console.log);
+        } else {
+            isPlaying = false;
+            playPauseBtn.innerText = '▶';
+            setStatus("playback ended", true);
+        }
+    }
+    
+    function getThemeColor() {
+        const theme = document.body.getAttribute('data-theme') || 'pink';
+        const colors = { pink: { r: 201, g: 0, b: 111 }, dark: { r: 0, g: 153, b: 255 }, light: { r: 0, g: 0, b: 0 }, yellow: { r: 255, g: 170, b: 0 } };
+        return colors[theme];
+    }
+    
+    function getThemeSecondaryColor() {
+        const theme = document.body.getAttribute('data-theme') || 'pink';
+        const colors = { pink: { r: 100, g: 100, b: 100 }, dark: { r: 80, g: 80, b: 100 }, light: { r: 180, g: 180, b: 180 }, yellow: { r: 120, g: 100, b: 40 } };
+        return colors[theme];
+    }
+    
+    let currentColor1 = getThemeColor();
+    let currentColor2 = getThemeSecondaryColor();
+    
+    function updateColorsFromTheme() {
+        currentColor1 = getThemeColor();
+        currentColor2 = getThemeSecondaryColor();
+    }
+    
+    function setStatus(msg, temp = true) {
+        const span = document.getElementById('liveStatus');
+        if(span) { span.innerText = msg; if(temp) setTimeout(() => { if(document.getElementById('liveStatus')?.innerText === msg) span.innerText = "audio ready"; }, 1800); }
+    }
+    function formatTime(secs) { if(isNaN(secs)) return "0:00"; const m = Math.floor(secs/60); const s = Math.floor(secs%60); return `${m}:${s.toString().padStart(2,'0')}`; }
+    function updateMetadata() { if(audioElement.src) { durationSpan.innerText = formatTime(audioElement.duration); seekSlider.max = audioElement.duration || 0; } else durationSpan.innerText = "0:00"; }
+    function updateTime() { currentTimeSpan.innerText = formatTime(audioElement.currentTime); seekSlider.value = audioElement.currentTime || 0; }
+    async function loadTrack(index) { if(index<0 || index>=tracks.length) return; const track = tracks[index]; if(!track?.file) return; const oldSrc = audioElement.src; const url = URL.createObjectURL(track.file); audioElement.src = url; audioElement.load(); currentTrackIndex = index; updateMetadata(); updateFileListActive(); setStatus(`loaded: ${track.name}`, true); setupAudioContext(); if(isPlaying) audioElement.play().catch(e=>console.log); if(oldSrc && oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc); }
+    function updateFileListActive() { document.querySelectorAll('.track-item-main').forEach((item,idx)=>{ if(idx===currentTrackIndex) item.classList.add('active'); else item.classList.remove('active'); }); }
+    function renderFileList() { if(tracks.length===0) { fileListContainer.innerHTML='<div class="empty-list">none loaded</div>'; return; } let html=''; tracks.forEach((track,idx)=>{ html+=`<div class="track-item-main" data-index="${idx}"><span>${track.name.length>35?track.name.slice(0,32)+'...':track.name}</span><button class="remove-track-main" data-remove="${idx}">✖</button></div>`; }); fileListContainer.innerHTML=html; document.querySelectorAll('.track-item-main').forEach(el=>{ el.addEventListener('click',(e)=>{ if(e.target.classList.contains('remove-track-main')) return; const idx=parseInt(el.dataset.index); if(!isNaN(idx)) loadTrack(idx); }); const rm=el.querySelector('.remove-track-main'); if(rm) rm.addEventListener('click',(e)=>{ e.stopPropagation(); const idx=parseInt(rm.dataset.remove); removeTrack(idx); }); }); updateFileListActive(); }
+    function removeTrack(index) { if(index<0||index>=tracks.length) return; const oldSrc = audioElement.src; tracks.splice(index,1); if(tracks.length===0){ audioElement.pause(); audioElement.src=''; isPlaying=false; playPauseBtn.innerText='▶'; currentTrackIndex=-1; setStatus("all tracks removed",true); } else { if(currentTrackIndex===index) loadTrack(0); else if(currentTrackIndex>index) currentTrackIndex--; } renderFileList(); if(tracks.length>0 && !audioElement.src) loadTrack(0); if(oldSrc && oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc); }
+    function addFiles(files) { if(!files) return; const newTracks=[]; for(let i=0;i<Math.min(files.length,10-tracks.length);i++){ const f=files[i]; if(f.type.startsWith('audio/')||f.name.match(/\.(m4a|mp4|aac|mp3|wav|ogg|flac)$/i)) newTracks.push({name:f.name,file:f}); } if(!newTracks.length){ setStatus("no valid audio files",true); return; } tracks.push(...newTracks); renderFileList(); if(tracks.length===newTracks.length && !audioElement.src) loadTrack(0); setStatus(`added ${newTracks.length} track(s)`,true); }
+    function setupAudioContext() { if(!audioContext){ audioContext=new(window.AudioContext||window.webkitAudioContext)(); analyser=audioContext.createAnalyser(); analyser.fftSize=512; analyser.connect(audioContext.destination); } if(sourceNode) try{ sourceNode.disconnect(); }catch(e){} if(audioContext.state==='suspended') audioContext.resume(); sourceNode=audioContext.createMediaElementSource(audioElement); sourceNode.connect(analyser); analyser.connect(audioContext.destination); sourceNode.connect(audioContext.destination); }
+    function drawWaveform(freqArray){ const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h); ctx.strokeStyle=`rgba(${currentColor2.r},${currentColor2.g},${currentColor2.b},0.25)`; ctx.lineWidth=0.5; for(let y=0;y<3;y++){ const yPos=h*(0.25+y*0.25); ctx.beginPath(); ctx.moveTo(0,yPos); ctx.lineTo(w,yPos); ctx.stroke(); } ctx.beginPath(); ctx.lineWidth=2.5; ctx.strokeStyle=`rgb(${currentColor1.r},${currentColor1.g},${currentColor1.b})`; ctx.shadowBlur=6; ctx.shadowColor=`rgb(${currentColor1.r},${currentColor1.g},${currentColor1.b})`; let first=true; for(let x=0;x<w;x++){ const idx=Math.floor((x/w)*freqArray.length); const y=h/2+(0.5-freqArray[idx]/255)*h*0.4; if(first){ ctx.moveTo(x,y); first=false; }else ctx.lineTo(x,y); } ctx.stroke(); ctx.shadowBlur=0; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.strokeStyle=`rgba(${currentColor2.r},${currentColor2.g},${currentColor2.b},0.4)`; ctx.lineWidth=1; ctx.stroke(); }
+    function drawPulseCore(freqArray){ const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,maxR=Math.min(w,h)*0.38; let avg=0,avgL=0,avgM=0,avgH=0; const lowEnd=Math.floor(freqArray.length*0.15),midEnd=Math.floor(freqArray.length*0.5); for(let i=0;i<freqArray.length;i++){ avg+=freqArray[i]; if(i<lowEnd) avgL+=freqArray[i]; else if(i<midEnd) avgM+=freqArray[i]; else avgH+=freqArray[i]; } avg=avg/freqArray.length/255; avgL=avgL/lowEnd/255; avgM=avgM/(midEnd-lowEnd)/255; avgH=avgH/(freqArray.length-midEnd)/255; const smooth=Math.pow(Math.min(avg*1.5,1),0.7),bass=Math.pow(Math.min(avgL*1.8,1),0.6),mid=Math.pow(Math.min(avgM*1.3,1),0.7),high=Math.pow(Math.min(avgH*1.2,1),0.8); pulsePhase+=0.03; ctx.clearRect(0,0,w,h); ctx.strokeStyle=`rgba(${currentColor2.r},${currentColor2.g},${currentColor2.b},0.2)`; ctx.lineWidth=0.5; for(let r=1;r<=4;r++){ const rad=(maxR*r)/4; ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.stroke(); } for(let a=0;a<12;a++){ const angle=(a*Math.PI*2)/12; ctx.beginPath(); ctx.moveTo(cx+Math.cos(angle)*8,cy+Math.sin(angle)*8); ctx.lineTo(cx+Math.cos(angle)*maxR,cy+Math.sin(angle)*maxR); ctx.stroke(); } const outerPulse=maxR*(0.7+bass*0.3); ctx.beginPath(); ctx.arc(cx,cy,outerPulse,0,Math.PI*2); ctx.strokeStyle=`rgba(${currentColor1.r},${currentColor1.g},${currentColor1.b},0.5)`; ctx.lineWidth=2+smooth*5; ctx.shadowBlur=10; ctx.shadowColor=`rgb(${currentColor1.r},${currentColor1.g},${currentColor1.b})`; ctx.stroke(); const midRing=maxR*(0.4+mid*0.2); ctx.beginPath(); ctx.arc(cx,cy,midRing,0,Math.PI*2); ctx.strokeStyle=`rgba(${currentColor1.r},${currentColor1.g},${currentColor1.b},0.7)`; ctx.lineWidth=1.5; ctx.stroke(); const coreSize=10+bass*24; ctx.beginPath(); ctx.arc(cx,cy,coreSize,0,Math.PI*2); ctx.fillStyle=`rgb(${currentColor1.r},${currentColor1.g},${currentColor1.b})`; ctx.fill(); ctx.beginPath(); ctx.arc(cx,cy,coreSize+3,0,Math.PI*2); ctx.fillStyle=`rgba(${currentColor1.r},${currentColor1.g},${currentColor1.b},0.3)`; ctx.fill(); const orbitRad=maxR*(0.55+high*0.2); for(let p=0;p<4;p++){ const angle=pulsePhase*2+(p*Math.PI*2/4); const x=cx+Math.cos(angle*(1+avg*2))*orbitRad; const y=cy+Math.sin(angle*(1+avg*2))*orbitRad; ctx.beginPath(); ctx.arc(x,y,2+smooth*5,0,Math.PI*2); ctx.fillStyle=`rgb(${currentColor1.r},${currentColor1.g},${currentColor1.b})`; ctx.fill(); } ctx.shadowBlur=0; }
+    function drawVisualizer(){ if(!analyser){ drawPlaceholder(); animationId=requestAnimationFrame(drawVisualizer); return; } const freq=new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(freq); if(vizMode==='waveform') drawWaveform(freq); else drawPulseCore(freq); animationId=requestAnimationFrame(drawVisualizer); }
+    function drawPlaceholder(){ const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h); ctx.fillStyle=`rgba(${currentColor2.r},${currentColor2.g},${currentColor2.b},0.15)`; ctx.fillRect(0,0,w,h); }
+    function toggleVisualizerMode(){ vizMode=vizMode==='waveform'?'pulsecore':'waveform'; vizToggleBtn.innerHTML=vizMode==='waveform'?'VIZ: WAVE':'VIZ: PULSE'; setStatus(`${vizMode==='waveform'?'waveform':'pulse core'} mode`,true); }
+    function resizeCanvas(){ const container=canvas.parentElement; canvas.width=Math.min(container.clientWidth,1200); canvas.height=400; drawPlaceholder(); }
+    audioElement.addEventListener('timeupdate',()=>{ updateTime(); });
+    audioElement.addEventListener('ended', () => { handleTrackEnd(); });
+    audioElement.addEventListener('loadedmetadata',updateMetadata); audioElement.addEventListener('play',()=>{ isPlaying=true; playPauseBtn.innerText='⏸'; }); audioElement.addEventListener('pause',()=>{ isPlaying=false; playPauseBtn.innerText='▶'; });
+    seekSlider.addEventListener('input',()=>{ audioElement.currentTime=seekSlider.value; updateTime(); }); volumeSlider.addEventListener('input',()=>{ audioElement.volume=volumeSlider.value; });
+    playPauseBtn.addEventListener('click',()=>{ if(!audioElement.src && tracks.length) loadTrack(0); if(!audioElement.src) return setStatus("no tracks",true); if(isPlaying) audioElement.pause(); else{ audioElement.play().catch(e=>setStatus("tap again",true)); if(audioContext && audioContext.state==='suspended') audioContext.resume(); } });
+    repeatBtn.addEventListener('click', cycleRepeatMode);
+    addFilesBtn.addEventListener('click',()=>filePicker.click()); filePicker.addEventListener('change',(e)=>{ if(e.target.files?.length) addFiles(Array.from(e.target.files)); filePicker.value=''; });
+    vizToggleBtn.addEventListener('click',toggleVisualizerMode);
+    
+    const BACKGROUNDS=["https://64.media.tumblr.com/88fd36bb39932ad32a95ead7b9e70553/35e24a78b63ba8bd-4a/s500x750/2e0070753ee6fb86078c03693e9225e356f5d4c1.gif","https://64.media.tumblr.com/0ac9d68d6f8915794e1fbd8ca8b6a245/35d2387a6c099773-0f/s400x600/9c3f9f32a995de10a1a45a860a5b67ec6af46b8e.gif","https://64.media.tumblr.com/a72887da7f711fa784e202a71ecfcb57/e75051a9ccceeba3-dd/s500x750/070f7698a5f15b31250aaf8f2072818b52c00427.gif"];
+    let currentBgIndex=0; function setBackgroundByUrl(url){ document.body.style.backgroundImage=`url('${url}')`; } function shuffleToNextBackground(){ currentBgIndex=(currentBgIndex+1)%BACKGROUNDS.length; setBackgroundByUrl(BACKGROUNDS[currentBgIndex]); setStatus("bg changed",true); }
+    
+    localBgBtn.addEventListener('click', () => localBgInput.click());
+    localBgInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && (file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/gif')) {
+            const url = URL.createObjectURL(file);
+            setBackgroundByUrl(url);
+            setStatus("local bg loaded", true);
+        } else if (file) {
+            setStatus("invalid format (jpg/png/gif)", true);
+        }
+        localBgInput.value = '';
+    });
+    
+    let themeIdx=0; const themes=['pink','dark','light','yellow']; 
+    function setTheme(themeName){ document.body.setAttribute('data-theme',themeName); updateColorsFromTheme(); } 
+    function cycleTheme(){ themeIdx=(themeIdx+1)%themes.length; setTheme(themes[themeIdx]); setStatus(`${themes[themeIdx]} theme`,true); }
+    document.getElementById('themeCycleBtn')?.addEventListener('click', cycleTheme); document.getElementById('backgroundShuffleBtn')?.addEventListener('click', shuffleToNextBackground);
+    function updateClockAndDate(){ const n=new Date(); document.getElementById('liveClock').innerText=`${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}`; document.getElementById('liveDate').innerText=n.toLocaleDateString(undefined,{ weekday:'long', month:'long', day:'numeric', year:'numeric' }); }
+    updateClockAndDate(); setInterval(updateClockAndDate,60000);
+    resizeCanvas(); window.addEventListener('resize',()=>{ resizeCanvas(); }); drawVisualizer(); audioElement.volume=0.7; volumeSlider.value=0.7; setTheme('pink'); updateRepeatButton(); document.body.addEventListener('click',()=>{ if(audioContext && audioContext.state==='suspended') audioContext.resume(); },{ once:true });
+    
+    // ========== SNAKE GAME ==========
+    const snakeModal = document.getElementById('snakeModal');
+    const snakeCanvasModal = document.getElementById('snakeCanvas');
+    const snakeCtxModal = snakeCanvasModal.getContext('2d');
+    const snakeScoreSpan = document.getElementById('snakeScore');
+    const resetSnakeBtn = document.getElementById('resetSnakeModalBtn');
+    const pauseSnakeBtn = document.getElementById('pauseSnakeModalBtn');
+    const closeSnakeModal = document.getElementById('closeSnakeModalBtn');
+    const snakeOpenBtn = document.getElementById('snakeGameBtn');
+    
+    let snakeArr = [{x: 10, y: 10}];
+    let snakeDir = 'RIGHT';
+    let nextSnakeDir = 'RIGHT';
+    let snakeFood = {x: 15, y: 10};
+    let snakeScoreVal = 0;
+    let snakeRunning = true;
+    let snakeInterval = null;
+    let snakePaused = false;
+    const GRID = 15;
+    
+    function randomIntSnake(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function generateRandomFoodSnake() {
+        for(let i=0; i<2000; i++) {
+            const newFood = {x: randomIntSnake(0, GRID-1), y: randomIntSnake(0, GRID-1)};
+            if(!snakeArr.some(seg => seg.x === newFood.x && seg.y === newFood.y)) {
+                snakeFood = newFood;
+                return true;
+            }
+        }
+        for(let y=0; y<GRID; y++) for(let x=0; x<GRID; x++) if(!snakeArr.some(s => s.x===x && s.y===y)) { snakeFood = {x,y}; return true; }
+        return false;
+    }
+    function drawSnakeGame() {
+        if(!snakeCtxModal) return;
+        const cellSize = snakeCanvasModal.width / GRID;
+        snakeCtxModal.clearRect(0, 0, snakeCanvasModal.width, snakeCanvasModal.height);
+        const theme = document.body.getAttribute('data-theme') || 'pink';
+        let snakeColor, foodColor, gridColor;
+        if(theme === 'pink') { snakeColor = '#c9006f'; foodColor = '#ff66aa'; gridColor = '#c9006f40'; }
+        else if(theme === 'dark') { snakeColor = '#0099ff'; foodColor = '#66ccff'; gridColor = '#0099ff40'; }
+        else if(theme === 'light') { snakeColor = '#000000'; foodColor = '#e67e22'; gridColor = '#00000020'; }
+        else { snakeColor = '#ffaa00'; foodColor = '#ffcc44'; gridColor = '#ffaa0040'; }
+        snakeCtxModal.fillStyle = gridColor;
+        for(let i=0; i<=GRID; i++) { snakeCtxModal.fillRect(i*cellSize-1, 0, 1, snakeCanvasModal.height); snakeCtxModal.fillRect(0, i*cellSize-1, snakeCanvasModal.width, 1); }
+        snakeCtxModal.fillStyle = snakeColor;
+        snakeArr.forEach(seg => { snakeCtxModal.fillRect(seg.x * cellSize, seg.y * cellSize, cellSize-1, cellSize-1); });
+        snakeCtxModal.fillStyle = foodColor;
+        snakeCtxModal.fillRect(snakeFood.x * cellSize, snakeFood.y * cellSize, cellSize-1, cellSize-1);
+    }
+    function updateSnakeGame() {
+        if(!snakeRunning || snakePaused) return;
+        snakeDir = nextSnakeDir;
+        const head = snakeArr[0];
+        let newHead = { ...head };
+        switch(snakeDir) {
+            case 'UP': newHead.y--; break;
+            case 'DOWN': newHead.y++; break;
+            case 'LEFT': newHead.x--; break;
+            case 'RIGHT': newHead.x++; break;
+        }
+        if(newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID) { snakeGameOver(); return; }
+        if(snakeArr.some(seg => seg.x === newHead.x && seg.y === newHead.y)) { snakeGameOver(); return; }
+        snakeArr.unshift(newHead);
+        if(newHead.x === snakeFood.x && newHead.y === snakeFood.y) {
+            snakeScoreVal++;
+            snakeScoreSpan.innerText = snakeScoreVal;
+            if(!generateRandomFoodSnake()) { snakeGameOver(); return; }
+        } else { snakeArr.pop(); }
+        drawSnakeGame();
+    }
+    function snakeGameOver() {
+        if(!snakeRunning) return;
+        snakeRunning = false;
+        if(snakeInterval) clearInterval(snakeInterval);
+        snakeInterval = null;
+        setStatus("game over", true);
+    }
+    function resetSnakeGame() {
+        if(snakeInterval) clearInterval(snakeInterval);
+        snakeArr = [{x: 7, y: 7}];
+        snakeDir = 'RIGHT';
+        nextSnakeDir = 'RIGHT';
+        snakeScoreVal = 0;
+        snakeScoreSpan.innerText = '0';
+        snakeRunning = true;
+        snakePaused = false;
+        pauseSnakeBtn.innerText = 'PAUSE';
+        generateRandomFoodSnake();
+        drawSnakeGame();
+        snakeInterval = setInterval(() => updateSnakeGame(), 130);
+    }
+    function toggleSnakePause() {
+        if(!snakeRunning) return;
+        snakePaused = !snakePaused;
+        pauseSnakeBtn.innerText = snakePaused ? 'RESUME' : 'PAUSE';
+        drawSnakeGame();
+        if(!snakePaused) updateSnakeGame();
+    }
+    function handleSnakeKeydown(e) {
+        if(!snakeModal.classList.contains('show')) return;
+        const key = e.key;
+        const keyMap = { 'ArrowUp': 'UP', 'ArrowDown': 'DOWN', 'ArrowLeft': 'LEFT', 'ArrowRight': 'RIGHT', 'w': 'UP', 's': 'DOWN', 'a': 'LEFT', 'd': 'RIGHT' };
+        if(keyMap[key]) {
+            e.preventDefault();
+            const newDir = keyMap[key];
+            if((snakeDir === 'RIGHT' && newDir === 'LEFT') || (snakeDir === 'LEFT' && newDir === 'RIGHT') || (snakeDir === 'UP' && newDir === 'DOWN') || (snakeDir === 'DOWN' && newDir === 'UP')) return;
+            nextSnakeDir = newDir;
+        }
+    }
+    function openSnakeModal() { snakeModal.classList.add('show'); resetSnakeGame(); }
+    function closeSnakeModalFn() { if(snakeInterval) clearInterval(snakeInterval); snakeInterval = null; snakeModal.classList.remove('show'); }
+    snakeOpenBtn.addEventListener('click', openSnakeModal);
+    closeSnakeModal.addEventListener('click', closeSnakeModalFn);
+    resetSnakeBtn.addEventListener('click', resetSnakeGame);
+    pauseSnakeBtn.addEventListener('click', toggleSnakePause);
+    window.addEventListener('keydown', handleSnakeKeydown);
+    generateRandomFoodSnake();
+    drawSnakeGame();
+    
+    // ========== LEFT PLAYER (SECONDARY) ==========
+    const leftAudio = new Audio();
+    let leftPlaying = false;
+    let leftTracks = [];
+    let leftCurrentIndex = -1;
+    let leftRepeatMode = 0;
+    
+    const leftPlayBtn = document.getElementById('leftPlayPauseBtn');
+    const leftRepeatBtn = document.getElementById('leftRepeatBtn');
+    const leftSeek = document.getElementById('leftSeekSlider');
+    const leftVolume = document.getElementById('leftVolumeSlider');
+    const leftCurrentSpan = document.getElementById('leftCurrentTime');
+    const leftDurationSpan = document.getElementById('leftDuration');
+    const leftTrackNameSpan = document.getElementById('leftTrackName');
+    const leftFileListDiv = document.getElementById('leftFileListContainer');
+    const leftFilePickerInput = document.getElementById('leftFilePicker');
+    const leftAddBtn = document.getElementById('leftAddFilesBtn');
+    
+    function updateLeftRepeatButton() {
+        const modeText = leftRepeatMode === 0 ? 'REPEAT: OFF' : (leftRepeatMode === 1 ? 'REPEAT: ONE' : 'REPEAT: LIST');
+        leftRepeatBtn.innerText = modeText;
+    }
+    
+    function cycleLeftRepeatMode() {
+        leftRepeatMode = (leftRepeatMode + 1) % 3;
+        updateLeftRepeatButton();
+        leftAudio.loop = false;
+    }
+    
+    function handleLeftTrackEnd() {
+        if (leftRepeatMode === 1) {
+            leftAudio.currentTime = 0;
+            leftAudio.play().catch(e => console.log);
+        } else if (leftRepeatMode === 2 && leftTracks.length > 0) {
+            let nextIndex = leftCurrentIndex + 1;
+            if (nextIndex >= leftTracks.length) nextIndex = 0;
+            loadLeftTrack(nextIndex);
+            leftAudio.play().catch(e => console.log);
+        } else {
+            leftPlaying = false;
+            leftPlayBtn.innerText = '▶';
+        }
+    }
+    
+    function formatLeftTime(secs) { if (isNaN(secs)) return "0:00"; const m = Math.floor(secs / 60); const s = Math.floor(secs % 60); return `${m}:${s.toString().padStart(2,'0')}`; }
+    function updateLeftUI() { if (leftAudio.src && !isNaN(leftAudio.duration)) { leftDurationSpan.innerText = formatLeftTime(leftAudio.duration); leftSeek.max = leftAudio.duration; } else if (leftAudio.src) { leftSeek.max = 0; } leftCurrentSpan.innerText = formatLeftTime(leftAudio.currentTime); leftSeek.value = leftAudio.currentTime || 0; }
+    function renderLeftFileList() {
+        if (leftTracks.length === 0) { leftFileListDiv.innerHTML = '<div class="empty-list">none loaded</div>'; return; }
+        let html = ''; leftTracks.forEach((track, idx) => { const displayName = track.name.length > 30 ? track.name.slice(0,27) + '...' : track.name; html += `<div class="track-item-left" data-index="${idx}"><span>${displayName}</span><button class="remove-track-left" data-remove="${idx}">✖</button></div>`; });
+        leftFileListDiv.innerHTML = html;
+        document.querySelectorAll('.track-item-left').forEach(el => { el.addEventListener('click', (e) => { if (e.target.classList.contains('remove-track-left')) return; const idx = parseInt(el.dataset.index); if (!isNaN(idx)) loadLeftTrack(idx); }); const rm = el.querySelector('.remove-track-left'); if (rm) { rm.addEventListener('click', (e) => { e.stopPropagation(); const idx = parseInt(rm.dataset.remove); removeLeftTrack(idx); }); } });
+        document.querySelectorAll('.track-item-left').forEach((item, idx) => { if (idx === leftCurrentIndex) item.classList.add('active'); else item.classList.remove('active'); });
+    }
+    function loadLeftTrack(index) { if (index < 0 || index >= leftTracks.length) return; const track = leftTracks[index]; if (!track || !track.file) return; const oldSrc = leftAudio.src; const url = URL.createObjectURL(track.file); leftAudio.src = url; leftAudio.load(); leftCurrentIndex = index; leftTrackNameSpan.innerText = track.name.length > 35 ? track.name.slice(0,32) + '...' : track.name; if (oldSrc && oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc); updateLeftUI(); if (leftPlaying) leftAudio.play().catch(e => console.log); renderLeftFileList(); }
+    function removeLeftTrack(index) { if (index < 0 || index >= leftTracks.length) return; leftTracks.splice(index, 1); if (leftTracks.length === 0) { if (leftAudio.src) { const oldSrc = leftAudio.src; leftAudio.pause(); leftAudio.src = ''; if (oldSrc.startsWith('blob:')) URL.revokeObjectURL(oldSrc); } leftPlaying = false; leftPlayBtn.innerText = '▶'; leftCurrentIndex = -1; leftTrackNameSpan.innerText = 'no track loaded'; updateLeftUI(); } else { if (leftCurrentIndex === index) loadLeftTrack(0); else if (leftCurrentIndex > index) leftCurrentIndex--; } renderLeftFileList(); }
+    function addLeftFiles(files) { if (!files || files.length === 0) return; const newTracks = []; for (let i = 0; i < files.length; i++) { if (leftTracks.length + newTracks.length >= 10) break; const f = files[i]; if (f.type.startsWith('audio/') || f.name.match(/\.(m4a|mp4|aac|mp3|wav|ogg|flac)$/i)) newTracks.push({ name: f.name, file: f }); } if (newTracks.length === 0) return; leftTracks.push(...newTracks); renderLeftFileList(); if (leftTracks.length === newTracks.length && !leftAudio.src) loadLeftTrack(0); }
+    leftAudio.addEventListener('timeupdate', updateLeftUI); leftAudio.addEventListener('ended', handleLeftTrackEnd); leftAudio.addEventListener('loadedmetadata', updateLeftUI); leftAudio.addEventListener('play', () => { leftPlaying = true; leftPlayBtn.innerText = '⏸'; }); leftAudio.addEventListener('pause', () => { leftPlaying = false; leftPlayBtn.innerText = '▶'; });
+    leftPlayBtn.addEventListener('click', () => { if (!leftAudio.src && leftTracks.length) loadLeftTrack(0); if (!leftAudio.src) return; if (leftPlaying) leftAudio.pause(); else leftAudio.play().catch(e => console.log); });
+    leftRepeatBtn.addEventListener('click', cycleLeftRepeatMode);
+    leftSeek.addEventListener('input', () => { if (leftAudio.duration && !isNaN(leftAudio.duration)) leftAudio.currentTime = leftSeek.value; updateLeftUI(); });
+    leftVolume.addEventListener('input', () => { leftAudio.volume = leftVolume.value; });
+    leftAddBtn.addEventListener('click', () => leftFilePickerInput.click());
+    leftFilePickerInput.addEventListener('change', (e) => { if (e.target.files && e.target.files.length) addLeftFiles(Array.from(e.target.files)); leftFilePickerInput.value = ''; });
+    leftAudio.volume = 0.5; leftVolume.value = 0.5; updateLeftRepeatButton();
+
+    // ========== TONE GENERATOR ==========
+    let toneCtx = null, toneOsc = null, toneGain = null, toneActive = false;
+    let currentToneType = 'sine';
+    const toneTypeToggle = document.getElementById('toneTypeToggle');
+    const tonePlayBtn = document.getElementById('tonePlayBtn');
+    const toneStopBtn = document.getElementById('toneStopBtn');
+    const tonePitchSlider = document.getElementById('tonePitchSlider');
+    const tonePitchValue = document.getElementById('tonePitchValue');
+    const toneVolumeSliderGen = document.getElementById('toneVolumeSlider');
+    const toneVolumeValueGen = document.getElementById('toneVolumeValue');
+    
+    function initToneContext() {
+        if (!toneCtx) {
+            toneCtx = new (window.AudioContext || window.webkitAudioContext)();
+            toneGain = toneCtx.createGain();
+            toneGain.gain.value = parseFloat(toneVolumeSliderGen.value);
+            toneGain.connect(toneCtx.destination);
+        }
+        if (toneCtx.state === 'suspended') toneCtx.resume();
+    }
+    
+    toneTypeToggle.addEventListener('click', () => {
+        currentToneType = currentToneType === 'sine' ? 'triangle' : 'sine';
+        toneTypeToggle.innerText = currentToneType.toUpperCase();
+        if (toneActive && toneOsc) {
+            try { toneOsc.stop(); toneOsc.disconnect(); } catch(e) {}
+            toneOsc = toneCtx.createOscillator();
+            toneOsc.type = currentToneType;
+            toneOsc.frequency.value = parseFloat(tonePitchSlider.value);
+            toneOsc.connect(toneGain);
+            toneOsc.start();
+        }
+    });
+    
+    tonePlayBtn.addEventListener('click', () => {
+        initToneContext();
+        if (toneOsc) {
+            try { toneOsc.stop(); toneOsc.disconnect(); } catch(e) {}
+        }
+        toneOsc = toneCtx.createOscillator();
+        toneOsc.type = currentToneType;
+        toneOsc.frequency.value = parseFloat(tonePitchSlider.value);
+        toneOsc.connect(toneGain);
+        toneOsc.start();
+        toneActive = true;
+    });
+    
+    toneStopBtn.addEventListener('click', () => {
+        if (toneOsc) {
+            try { toneOsc.stop(); toneOsc.disconnect(); } catch(e) {}
+            toneOsc = null;
+        }
+        toneActive = false;
+    });
+    
+    tonePitchSlider.addEventListener('input', () => {
+        const val = tonePitchSlider.value;
+        tonePitchValue.innerText = val;
+        if (toneActive && toneOsc) toneOsc.frequency.value = val;
+    });
+    
+    toneVolumeSliderGen.addEventListener('input', () => {
+        const val = toneVolumeSliderGen.value;
+        toneVolumeValueGen.innerText = val.toFixed(2);
+        if (toneGain) toneGain.gain.value = val;
+    });
+    
+    // ========== NOISE GENERATOR ==========
+    let noiseCtx = null, noiseGain = null, noiseFilter = null, noiseActiveFlag = false, noiseScriptNode = null;
+    let currentNoiseType = 'white';
+    const noiseTypeToggle = document.getElementById('noiseTypeToggle');
+    const noisePlayBtn = document.getElementById('noisePlayBtn');
+    const noiseStopBtn = document.getElementById('noiseStopBtn');
+    const noiseCutoffSlider = document.getElementById('noiseCutoffSlider');
+    const noiseCutoffValue = document.getElementById('noiseCutoffValue');
+    const noiseVolumeSliderGen = document.getElementById('noiseVolumeSlider');
+    const noiseVolumeValueGen = document.getElementById('noiseVolumeValue');
+    
+    function initNoiseContext() {
+        if (!noiseCtx) {
+            noiseCtx = new (window.AudioContext || window.webkitAudioContext)();
+            noiseGain = noiseCtx.createGain();
+            noiseGain.gain.value = parseFloat(noiseVolumeSliderGen.value);
+            noiseFilter = noiseCtx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = parseFloat(noiseCutoffSlider.value);
+            noiseFilter.Q.value = 0.7;
+            noiseGain.connect(noiseFilter);
+            noiseFilter.connect(noiseCtx.destination);
+        }
+        if (noiseCtx.state === 'suspended') noiseCtx.resume();
+    }
+    
+    function createNoiseProcessor(type) {
+        const bufferSize = 4096;
+        let lastOut = 0;
+        const node = noiseCtx.createScriptProcessor(bufferSize, 1, 1);
+        node.onaudioprocess = function(e) {
+            const output = e.outputBuffer.getChannelData(0);
+            if (type === 'white') {
+                for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() * 2 - 1) * 0.8;
+            } else if (type === 'pink') {
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = 0.76114 * b5 + white * 0.0168980;
+                    const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                    b6 = white * 0.115926;
+                    output[i] = pink * 0.8;
+                }
+            } else if (type === 'brown') {
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    lastOut = (lastOut + (0.02 * white)) / 1.02;
+                    output[i] = lastOut * 1.2;
+                }
+            }
+        };
+        return node;
+    }
+    
+    noiseTypeToggle.addEventListener('click', () => {
+        const types = ['white', 'pink', 'brown'];
+        const currentIndex = types.indexOf(currentNoiseType);
+        currentNoiseType = types[(currentIndex + 1) % types.length];
+        noiseTypeToggle.innerText = currentNoiseType.toUpperCase();
+        if (noiseActiveFlag && noiseScriptNode) {
+            try { noiseScriptNode.disconnect(); noiseScriptNode.onaudioprocess = null; } catch(e) {}
+            noiseScriptNode = createNoiseProcessor(currentNoiseType);
+            noiseScriptNode.connect(noiseGain);
+        }
+    });
+    
+    noisePlayBtn.addEventListener('click', () => {
+        initNoiseContext();
+        if (noiseScriptNode) {
+            try { noiseScriptNode.disconnect(); noiseScriptNode.onaudioprocess = null; } catch(e) {}
+        }
+        noiseScriptNode = createNoiseProcessor(currentNoiseType);
+        noiseScriptNode.connect(noiseGain);
+        if (noiseGain) noiseGain.gain.value = parseFloat(noiseVolumeSliderGen.value);
+        if (noiseFilter) noiseFilter.frequency.value = parseFloat(noiseCutoffSlider.value);
+        noiseActiveFlag = true;
+    });
+    
+    noiseStopBtn.addEventListener('click', () => {
+        if (noiseScriptNode) {
+            try { noiseScriptNode.disconnect(); noiseScriptNode.onaudioprocess = null; } catch(e) {}
+            noiseScriptNode = null;
+        }
+        noiseActiveFlag = false;
+    });
+    
+    noiseCutoffSlider.addEventListener('input', () => {
+        const val = noiseCutoffSlider.value;
+        noiseCutoffValue.innerText = val;
+        if (noiseFilter) noiseFilter.frequency.value = val;
+    });
+    
+    noiseVolumeSliderGen.addEventListener('input', () => {
+        const val = noiseVolumeSliderGen.value;
+        noiseVolumeValueGen.innerText = val.toFixed(2);
+        if (noiseGain) noiseGain.gain.value = val;
+    });
+    
+    document.body.addEventListener('click', () => {
+        if (toneCtx && toneCtx.state === 'suspended') toneCtx.resume();
+        if (noiseCtx && noiseCtx.state === 'suspended') noiseCtx.resume();
+    }, { once: true });
+    renderFileList();
+    renderLeftFileList();
+</script>
+</body>
+</html>
